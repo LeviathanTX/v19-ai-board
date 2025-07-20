@@ -71,23 +71,22 @@ const AIHub = () => {
       try {
         for (const advisor of activeAdvisors) {
           const response = await fetch('/api/claude', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: 'claude-3-sonnet-20240229',
-              messages: [
-                {
-                  role: 'system',
-                  content: advisor.customPrompt
-                },
-                {
-                  role: 'user',
-                  content: inputMessage
-                }
-              ],
-              max_tokens: 1000
-            })
-          });
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    messages: [
+      {
+        role: 'system',
+        content: advisor.customPrompt || `You are ${advisor.name}, a ${advisor.role}.`
+      },
+      {
+        role: 'user',
+        content: inputMessage
+      }
+    ],
+    apiKey: settings.apiKey
+  })
+});
 
           const data = await response.json();
           
