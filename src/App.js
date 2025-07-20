@@ -110,6 +110,25 @@ function App() {
                 </div>
               </div>
             </div>
+
+            {/* Data Management */}
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-medium mb-4">Data Management</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Clear all local data including documents, conversations, and settings.
+              </p>
+              <button
+                onClick={() => {
+                  if (window.confirm('Are you sure? This will clear all documents, conversations, and settings.')) {
+                    localStorage.clear();
+                    window.location.reload();
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Clear All Data
+              </button>
+            </div>
           </div>
 
           <div className="mt-6 flex justify-end gap-3">

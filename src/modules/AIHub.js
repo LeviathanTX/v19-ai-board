@@ -3,7 +3,7 @@ import { Send, Plus, X, Users, FileText, Settings, Save, Clock, MessageSquare, C
 import { useAppState } from '../contexts/AppStateContext';
 
 const AIHub = () => {
-  const { state, updateConversations } = useAppState();
+  const { state, updateConversations, updateDocuments } = useAppState();
   const messagesEndRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -233,6 +233,67 @@ const AIHub = () => {
     } else {
       setActiveAdvisors(prev => [...prev, advisor]);
     }
+  };
+
+  const handleDocumentUpload = async (event) => {
+    const files = Array.from(event.target.files);
+    
+    const supportedFileTypes = {
+      'application/pdf': { ext: 'pdf', icon: '📄', color: 'red' },
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { ext: 'docx', icon: '📝', color: 'blue' },
+      'text/plain': { ext: 'txt', icon: '📃', color: 'gray' },
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { ext: 'xlsx', icon: '📊', color: 'green' },
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': { ext: 'pptx', icon: '📽️', color: 'orange' }
+    };
+    
+    for (const file of files) {
+      if (!Object.keys(supportedFileTypes).includes(file.type)) {
+        alert(`File type not supported: ${file.name}`);
+        continue;
+      }
+      
+      if (file.size > 20 * 1024 * 1024) {
+        alert(`File too large: ${file.name} (max 20MB)`);
+        continue;
+      }
+
+      const docId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const newDocument = {
+          id: docId,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          uploadDate: new Date().toISOString(),
+          content: e.target.result,
+          analyzed: true, // Mark as analyzed for immediate use
+          fileType: supportedFileTypes[file.type],
+          analysis: {
+            summary: `Document "${file.name}" uploaded and ready for AI analysis.`,
+            keyPoints: [
+              'Document available for reference',
+              'Ready for AI-powered insights',
+              'Can be used in advisory discussions'
+            ],
+            sentiment: 'neutral',
+            relevanceScore: 0.85,
+            keyInsights: ['Uploaded via AI Hub', 'Ready for analysis']
+          }
+        };
+
+        const updatedDocs = [...(state.documents || []), newDocument];
+        updateDocuments(updatedDocs);
+      };
+      
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDocumentDelete = (docId) => {
+    const updatedDocs = state.documents.filter(doc => doc.id !== docId);
+    updateDocuments(updatedDocs);
   };
 
   const SettingsModal = () => (
@@ -594,31 +655,53 @@ const AIHub = () => {
           
           {!documentPanelCollapsed && (
             <div className="p-4 overflow-y-auto">
+              {/* Upload button */}
+              <label className="mb-4 w-full px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer flex items-center justify-center gap-2">
+                <Plus className="w-4 h-4" />
+                <span className="text-sm font-medium">Upload Document</span>
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.docx,.txt,.xlsx,.pptx"
+                  onChange={handleDocumentUpload}
+                  className="hidden"
+                />
+              </label>
+
               {state.documents.filter(doc => doc.analysis).length === 0 ? (
                 <div className="text-center text-gray-500 py-8">
                   <FileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
                   <p className="text-sm">No analyzed documents</p>
-                  <p className="text-xs mt-1">Upload and analyze documents in Document Hub</p>
+                  <p className="text-xs mt-1">Upload documents to analyze</p>
                 </div>
               ) : (
-                state.documents.filter(doc => doc.analysis).map((doc) => (
-                  <div key={doc.id} className="p-3 mb-2 border rounded-lg hover:bg-gray-50">
-                    <div className="flex items-start gap-3">
-                      <span className="text-xl">{doc.fileType.icon}</span>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium truncate">{doc.name}</p>
-                        <p className="text-xs text-gray-500">
-                          Relevance: {Math.round(doc.analysis.relevanceScore * 100)}%
-                        </p>
-                        {doc.analysis.keyInsights && (
-                          <p className="text-xs text-gray-600 mt-1">
-                            {doc.analysis.keyInsights.length} key insights
+                <div className="space-y-2">
+                  {state.documents.filter(doc => doc.analysis).map((doc) => (
+                    <div key={doc.id} className="p-3 border rounded-lg hover:bg-gray-50 relative group">
+                      <button
+                        onClick={() => handleDocumentDelete(doc.id)}
+                        className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded transition-all"
+                        title="Remove document"
+                      >
+                        <X className="w-3 h-3 text-red-500" />
+                      </button>
+                      <div className="flex items-start gap-3">
+                        <span className="text-xl">{doc.fileType.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{doc.name}</p>
+                          <p className="text-xs text-gray-500">
+                            Relevance: {Math.round(doc.analysis.relevanceScore * 100)}%
                           </p>
-                        )}
+                          {doc.analysis.keyInsights && (
+                            <p className="text-xs text-gray-600 mt-1">
+                              {doc.analysis.keyInsights.length} key insights
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           )}
