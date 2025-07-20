@@ -44,7 +44,7 @@ const AIHub = () => {
 
   // Check if API key is set
   const hasApiKey = settings.apiKey && settings.apiKey.trim() !== '';
-  const showApiKeyBar = !hasApiKey || tempApiKey;
+  const showApiKeyBar = !hasApiKey;
 
   useEffect(() => {
     // Set up initial advisors
@@ -78,7 +78,7 @@ const AIHub = () => {
   };
 
   const saveApiKey = () => {
-    const keyToSave = tempApiKey || settings.apiKey;
+    const keyToSave = tempApiKey;
     const error = validateApiKey(keyToSave);
     
     if (error) {
