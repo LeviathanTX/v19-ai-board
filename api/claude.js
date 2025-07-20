@@ -24,6 +24,27 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'API key is required' });
     }
 
+    // Extract system message if present
+    let system = null;
+    let userMessages = messages;
+    
+    if (messages[0]?.role === 'system') {
+      system = messages[0].content;
+      userMessages = messages.slice(1);
+    }
+
+    // Build the request body with the correct format
+    const requestBody = {
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 1000,
+      messages: userMessages
+    };
+
+    // Add system parameter if we have a system message
+    if (system) {
+      requestBody.system = system;
+    }
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -31,16 +52,13 @@ export default async function handler(req, res) {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
-        messages: messages,
-        max_tokens: 1000
-      })
+      body: JSON.stringify(requestBody)
     });
 
     const data = await response.json();
 
     if (!response.ok) {
+      console.error('Anthropic API Error:', data);
       return res.status(response.status).json(data);
     }
 
