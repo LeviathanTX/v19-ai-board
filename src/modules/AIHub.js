@@ -16,7 +16,7 @@ const AIHub = () => {
   const [showSettings, setShowSettings] = useState(false);
 
   const [settings, setSettings] = useState({
-    apiKey: process.env.REACT_APP_CLAUDE_API_KEY || '',
+    apiKey: localStorage.getItem('claudeApiKey') || '',
     interactionMode: 'orchestrated',
     defaultAdvisors: [],
     autoSave: true,
@@ -27,7 +27,11 @@ const AIHub = () => {
   useEffect(() => {
     const savedSettings = localStorage.getItem('aiHubSettings');
     if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
+      const parsed = JSON.parse(savedSettings);
+      setSettings({
+        ...parsed,
+        apiKey: parsed.apiKey || localStorage.getItem('claudeApiKey') || ''
+      });
     }
 
     if (state.selectedAdvisors.length > 0 && activeAdvisors.length === 0) {
@@ -50,6 +54,9 @@ const AIHub = () => {
 
   useEffect(() => {
     localStorage.setItem('aiHubSettings', JSON.stringify(settings));
+    if (settings.apiKey) {
+      localStorage.setItem('claudeApiKey', settings.apiKey);
+    }
   }, [settings]);
 
   const handleSendMessage = async () => {
@@ -67,47 +74,68 @@ const AIHub = () => {
     setIsProcessing(true);
 
     if (settings.apiKey) {
-      // Real API call
       try {
         for (const advisor of activeAdvisors) {
-          const response = await fetch('/api/claude', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    messages: [
-      {
-        role: 'system',
-        content: advisor.customPrompt || `You are ${advisor.name}, a ${advisor.role}.`
-      },
-      {
-        role: 'user',
-        content: inputMessage
-      }
-    ],
-    apiKey: settings.apiKey
-  })
-});
+          const messages = [
+            {
+              role: 'system',
+              content: advisor.customPrompt || `You are ${advisor.name}, a ${advisor.role}. ${advisor.experience}`
+            },
+            {
+              role: 'user',
+              content: inputMessage
+            }
+          ];
+
+          const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': settings.apiKey,
+              'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+              model: 'claude-3-sonnet-20240229',
+              messages: messages,
+              max_tokens: 1000
+            })
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('API Error:', errorData);
+            throw new Error(errorData.error?.message || 'API request failed');
+          }
 
           const data = await response.json();
           
-          const advisorMessage = {
-            id: `msg-${Date.now()}-${advisor.id}`,
-            type: 'advisor',
-            advisorId: advisor.id,
-            advisorName: advisor.name,
-            advisorRole: advisor.role,
-            advisorAvatar: advisor.avatar,
-            content: data.content[0].text,
-            timestamp: new Date().toISOString()
-          };
-          
-          setMessages(prev => [...prev, advisorMessage]);
+          if (data && data.content && data.content.length > 0) {
+            const advisorMessage = {
+              id: `msg-${Date.now()}-${advisor.id}`,
+              type: 'advisor',
+              advisorId: advisor.id,
+              advisorName: advisor.name,
+              advisorRole: advisor.role,
+              advisorAvatar: advisor.avatar,
+              content: data.content[0].text,
+              timestamp: new Date().toISOString()
+            };
+            
+            setMessages(prev => [...prev, advisorMessage]);
+          }
         }
       } catch (error) {
         console.error('API Error:', error);
+        const errorMessage = {
+          id: `msg-${Date.now()}-error`,
+          type: 'system',
+          content: `Error: ${error.message}. Please check your API key in Settings.`,
+          timestamp: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, errorMessage]);
       }
     } else {
-      // Simulated response
+      // Simulated response when no API key
       for (const advisor of activeAdvisors) {
         await new Promise(resolve => setTimeout(resolve, 1500));
         
@@ -118,7 +146,7 @@ const AIHub = () => {
           advisorName: advisor.name,
           advisorRole: advisor.role,
           advisorAvatar: advisor.avatar,
-          content: `As your ${advisor.role}, I believe the key consideration here is strategic alignment. ${advisor.personality.approach} suggests focusing on measurable outcomes.`,
+          content: `As your ${advisor.role}, I believe the key consideration here is strategic alignment. ${advisor.personality?.approach || ''} suggests focusing on measurable outcomes. [Note: This is a simulated response. Please add your Claude API key in Settings to get real AI responses.]`,
           timestamp: new Date().toISOString()
         };
         
@@ -180,12 +208,21 @@ const AIHub = () => {
               <Bot className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium">Start your advisory session</p>
               <p className="text-sm mt-2">Type a message below to begin</p>
+              {!settings.apiKey && (
+                <p className="text-sm mt-4 text-amber-600">
+                  ⚠️ Add your Claude API key in Settings to get real AI responses
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-4 max-w-4xl mx-auto">
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  {msg.type === 'user' ? (
+                  {msg.type === 'system' ? (
+                    <div className="max-w-[70%] bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-amber-800">
+                      {msg.content}
+                    </div>
+                  ) : msg.type === 'user' ? (
                     <div className="max-w-[70%] bg-blue-600 text-white rounded-lg px-4 py-3">
                       {msg.content}
                     </div>
@@ -219,7 +256,7 @@ const AIHub = () => {
             />
             <button
               onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || isProcessing}
+              disabled={!inputMessage.trim() || isProcessing || activeAdvisors.length === 0}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               {isProcessing ? <Loader className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
@@ -250,6 +287,11 @@ const AIHub = () => {
                     <p className="font-medium">{advisor.name}</p>
                     <p className="text-sm text-gray-600">{advisor.role}</p>
                   </div>
+                  {activeAdvisors.find(a => a.id === advisor.id) && (
+                    <div className="ml-auto">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -285,19 +327,25 @@ const AIHub = () => {
           
           {!documentPanelCollapsed && (
             <div className="p-4 overflow-y-auto">
-              {state.documents.filter(doc => doc.analysis).map((doc) => (
-                <div key={doc.id} className="p-3 mb-2 border rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <span className="text-xl">{doc.fileType.icon}</span>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium truncate">{doc.name}</p>
-                      <p className="text-xs text-gray-500">
-                        Relevance: {Math.round(doc.analysis.relevanceScore * 100)}%
-                      </p>
+              {state.documents.filter(doc => doc.analysis).length === 0 ? (
+                <p className="text-sm text-gray-500 text-center">
+                  No analyzed documents available
+                </p>
+              ) : (
+                state.documents.filter(doc => doc.analysis).map((doc) => (
+                  <div key={doc.id} className="p-3 mb-2 border rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <span className="text-xl">{doc.fileType.icon}</span>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium truncate">{doc.name}</p>
+                        <p className="text-xs text-gray-500">
+                          Relevance: {Math.round(doc.analysis.relevanceScore * 100)}%
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           )}
         </div>
@@ -305,7 +353,7 @@ const AIHub = () => {
 
       {showSettings && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-lg max-w-md w-full">
             <div className="flex items-center justify-between p-6 border-b">
               <h3 className="text-lg font-semibold">AI Hub Settings</h3>
               <button
@@ -316,8 +364,8 @@ const AIHub = () => {
               </button>
             </div>
 
-            <div className="p-6 overflow-auto">
-              <div className="space-y-6">
+            <div className="p-6">
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Claude API Key
@@ -329,7 +377,22 @@ const AIHub = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="sk-ant-..."
                   />
-                  <p className="text-xs text-gray-500 mt-1">Your API key is stored locally</p>
+                  <p className="text-xs text-gray-500 mt-1">Your API key is stored locally in your browser</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Interaction Mode
+                  </label>
+                  <select
+                    value={settings.interactionMode}
+                    onChange={(e) => setSettings({ ...settings, interactionMode: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="orchestrated">Orchestrated (one at a time)</option>
+                    <option value="parallel">Parallel (all at once)</option>
+                    <option value="debate">Debate (advisors discuss)</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -339,7 +402,13 @@ const AIHub = () => {
                 onClick={() => setShowSettings(false)}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               >
-                Close
+                Cancel
+              </button>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Save Settings
               </button>
             </div>
           </div>
