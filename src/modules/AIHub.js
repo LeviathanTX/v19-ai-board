@@ -48,7 +48,7 @@ const AIHub = () => {
 
   useEffect(() => {
     // Set up initial advisors
-    if (state.selectedAdvisors.length > 0 && activeAdvisors.length === 0) {
+    if (state.selectedAdvisors && state.selectedAdvisors.length > 0 && activeAdvisors.length === 0) {
       const host = state.selectedAdvisors.find(adv => adv.isHost);
       if (host) {
         setActiveAdvisors([host]);
@@ -58,10 +58,10 @@ const AIHub = () => {
     }
 
     // Show document panel if we have analyzed documents
-    if (state.documents.filter(doc => doc.analysis).length > 0) {
+    if (state.documents && state.documents.filter(doc => doc.analysis).length > 0) {
       setShowDocumentPanel(true);
     }
-  }, [state.selectedAdvisors, state.documents]);
+  }, [state.selectedAdvisors, state.documents, activeAdvisors.length]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -160,17 +160,14 @@ const AIHub = () => {
             }
           ];
 
-          const response = await fetch('https://api.anthropic.com/v1/messages', {
+          const response = await fetch('/api/claude', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'x-api-key': settings.apiKey,
-              'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-              model: 'claude-3-sonnet-20240229',
               messages: messages,
-              max_tokens: 1000
+              apiKey: settings.apiKey.trim()
             })
           });
 
@@ -351,7 +348,7 @@ const AIHub = () => {
               <div className="flex-1 max-w-md relative">
                 <input
                   type={showApiKey ? 'text' : 'password'}
-                  value={tempApiKey || settings.apiKey}
+                  value={tempApiKey}
                   onChange={(e) => {
                     setTempApiKey(e.target.value);
                     setApiKeyError('');
@@ -524,11 +521,21 @@ const AIHub = () => {
             </div>
           </div>
           <div className="p-4">
-            {state.selectedAdvisors.length === 0 ? (
+            {(!state.selectedAdvisors || state.selectedAdvisors.length === 0) ? (
               <div className="text-center text-gray-500 py-8">
                 <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
                 <p className="text-sm">No advisors selected</p>
                 <p className="text-xs mt-1">Go to Advisory Hub to add advisors</p>
+                <button
+                  onClick={() => {
+                    // This would normally navigate to Advisory Hub
+                    // For now, we'll just show a message
+                    alert('Please go to Advisory Hub from the sidebar to select advisors');
+                  }}
+                  className="mt-3 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+                >
+                  Select Advisors
+                </button>
               </div>
             ) : (
               state.selectedAdvisors.map((advisor) => (
