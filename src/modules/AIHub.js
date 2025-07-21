@@ -51,7 +51,8 @@ const AIHub = () => {
       defaultAdvisors: [],
       autoSave: true,
       maxStoredMeetings: 50,
-      useLastAdvisors: true
+      useLastAdvisors: true,
+      includeHost: true
     };
   });
 
@@ -74,11 +75,19 @@ const AIHub = () => {
   useEffect(() => {
     // Set up initial advisors
     if (state.selectedAdvisors && state.selectedAdvisors.length > 0 && activeAdvisors.length === 0) {
-      const host = state.selectedAdvisors.find(adv => adv.isHost);
-      if (host) {
-        setActiveAdvisors([host]);
+      if (settings.includeHost) {
+        const host = state.selectedAdvisors.find(adv => adv.isHost);
+        if (host) {
+          setActiveAdvisors([host]);
+        } else {
+          setActiveAdvisors([state.selectedAdvisors[0]]);
+        }
       } else {
-        setActiveAdvisors([state.selectedAdvisors[0]]);
+        // If not including host, select first non-host advisor
+        const nonHostAdvisors = state.selectedAdvisors.filter(adv => !adv.isHost);
+        if (nonHostAdvisors.length > 0) {
+          setActiveAdvisors([nonHostAdvisors[0]]);
+        }
       }
     }
 
@@ -144,6 +153,12 @@ const AIHub = () => {
   const startMeeting = async () => {
     setMeetingStarted(true);
     setMeetingStartTime(new Date());
+    
+    // Check if we should include host
+    if (!settings.includeHost) {
+      // Meeting starts without host greeting
+      return;
+    }
     
     // Find the host advisor
     const host = activeAdvisors.find(adv => adv.isHost);
@@ -562,7 +577,7 @@ How would you like to start?`,
                 {!isUsingEnvKey && (
                   <button
                     onClick={() => {
-                      const newSettings = { ...settings };
+                      localStorage.setItem('aiHubSettings', JSON.stringify(settings));
                       saveApiKey();
                       setShowSettings(false);
                     }}
@@ -618,6 +633,21 @@ How would you like to start?`,
                 />
                 <span className="text-sm text-gray-700">Remember last used advisors</span>
               </label>
+            </div>
+
+            <div className="border-t pt-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={settings.includeHost}
+                  onChange={(e) => setSettings({ ...settings, includeHost: e.target.checked })}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700">Include Meeting Host when starting meetings</span>
+              </label>
+              <p className="text-xs text-gray-500 ml-6 mt-1">
+                When enabled, the AI Meeting Host will facilitate your sessions with professional meeting management techniques.
+              </p>
             </div>
           </div>
         </div>
@@ -698,7 +728,7 @@ How would you like to start?`,
               {!meetingStarted ? (
                 <button
                   onClick={startMeeting}
-                  disabled={activeAdvisors.length === 0 || !activeAdvisors.find(a => a.isHost)}
+                  disabled={activeAdvisors.length === 0 || (settings.includeHost && !activeAdvisors.find(a => a.isHost))}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   <Video className="w-4 h-4" />
@@ -765,8 +795,8 @@ How would you like to start?`,
                 {activeAdvisors.length === 0 
                   ? 'Select advisors from the panel to begin'
                   : !meetingStarted 
-                    ? 'Click "Start Meeting" to begin with your host'
-                    : 'Your host is preparing to welcome you...'}
+                    ? settings.includeHost ? 'Click "Start Meeting" to begin with your host' : 'Click "Start Meeting" to begin'
+                    : settings.includeHost ? 'Your host is preparing to welcome you...' : 'Meeting started - begin your discussion'}
               </p>
               {!hasApiKey && (
                 <p className="text-xs text-amber-600 mt-4">
@@ -879,7 +909,9 @@ How would you like to start?`,
                 </button>
               </div>
             ) : (
-              state.selectedAdvisors.map((advisor) => (
+              state.selectedAdvisors
+                .filter(advisor => settings.includeHost || !advisor.isHost)
+                .map((advisor) => (
                 <div
                   key={advisor.id}
                   onClick={() => toggleAdvisor(advisor)}

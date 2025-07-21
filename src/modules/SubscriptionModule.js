@@ -41,7 +41,7 @@ const SubscriptionModule = () => {
             <CreditCard className="w-12 h-12 text-white opacity-50" />
           </div>
           <div className="flex items-baseline gap-1 mb-4">
-            <span className="text-4xl font-bold">$199</span>
+            <span className="text-4xl font-bold blur-sm">$XXX</span>
             <span className="text-indigo-100">/month</span>
           </div>
           <div className="space-y-2">
@@ -66,13 +66,16 @@ const SubscriptionModule = () => {
 
         {/* Subscription Plans */}
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Available Plans</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Available Plans</h2>
+            <span className="text-sm bg-amber-100 text-amber-800 px-3 py-1 rounded-full">Coming Soon</span>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Starter Plan */}
             <div className="border border-gray-200 rounded-lg p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-2">Starter</h3>
               <div className="flex items-baseline gap-1 mb-4">
-                <span className="text-3xl font-bold">$49</span>
+                <span className="text-3xl font-bold blur-sm">$XX</span>
                 <span className="text-gray-600">/month</span>
               </div>
               <ul className="space-y-3 mb-6">
@@ -105,7 +108,7 @@ const SubscriptionModule = () => {
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Professional</h3>
               <div className="flex items-baseline gap-1 mb-4">
-                <span className="text-3xl font-bold">$199</span>
+                <span className="text-3xl font-bold blur-sm">$XXX</span>
                 <span className="text-gray-600">/month</span>
               </div>
               <ul className="space-y-3 mb-6">
@@ -135,7 +138,7 @@ const SubscriptionModule = () => {
             <div className="border border-gray-200 rounded-lg p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-2">Enterprise</h3>
               <div className="flex items-baseline gap-1 mb-4">
-                <span className="text-3xl font-bold">$999</span>
+                <span className="text-3xl font-bold blur-sm">$XXXX</span>
                 <span className="text-gray-600">/month</span>
               </div>
               <ul className="space-y-3 mb-6">
