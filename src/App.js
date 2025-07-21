@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, Home, FileText, Users, Brain, Video, CreditCard, ChevronLeft, Settings, User } from 'lucide-react';
+import { Menu, X, FileText, Users, Brain, Video, CreditCard, ChevronLeft, Settings, User } from 'lucide-react';
 import { AppStateProvider } from './contexts/AppStateContext';
 import ModuleContainer from './components/ModuleContainer';
 import DocumentHub from './modules/DocumentHub';
@@ -9,7 +9,7 @@ import SubscriptionModule from './modules/SubscriptionModule';
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeModule, setActiveModule] = useState('subscription');
+  const [activeModule, setActiveModule] = useState('ai');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showGlobalSettings, setShowGlobalSettings] = useState(false);
 
@@ -194,9 +194,9 @@ function App() {
       case 'meetings':
         return <PlaceholderModule title="Virtual Meetings Hub" icon={Video} color="orange" />;
       case 'subscription':
-        return <SubscriptionModule setActiveModule={setActiveModule} />;
+        return <SubscriptionModule />;
       default:
-        return <SubscriptionModule setActiveModule={setActiveModule} />;
+        return <SubscriptionModule />;
     }
   };
 
