@@ -2,19 +2,18 @@ import React, { useState } from 'react';
 import { Menu, X, Home, FileText, Users, Brain, Video, CreditCard, ChevronLeft, Settings, User } from 'lucide-react';
 import { AppStateProvider } from './contexts/AppStateContext';
 import ModuleContainer from './components/ModuleContainer';
-import DashboardModule from './modules/DashboardModule';
 import DocumentHub from './modules/DocumentHub';
 import AdvisoryHub from './modules/AdvisoryHub';
 import AIHub from './modules/AIHub';
+import SubscriptionModule from './modules/SubscriptionModule';
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeModule, setActiveModule] = useState('ai');
+  const [activeModule, setActiveModule] = useState('subscription');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showGlobalSettings, setShowGlobalSettings] = useState(false);
 
   const modules = [
-    { id: 'dashboard', name: 'Dashboard', icon: Home, color: 'gray' },
     { id: 'ai', name: 'AI Boardroom', icon: Brain, color: 'green' },
     { id: 'documents', name: 'Document Hub', icon: FileText, color: 'blue' },
     { id: 'advisors', name: 'Advisory Hub', icon: Users, color: 'purple' },
@@ -108,9 +107,10 @@ function App() {
                     Default Home Module
                   </label>
                   <select className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="dashboard">Dashboard</option>
+                    <option value="subscription">Subscription</option>
                     <option value="ai">AI Boardroom</option>
                     <option value="documents">Document Hub</option>
+                    <option value="advisors">Advisory Hub</option>
                   </select>
                 </div>
                 <div>
@@ -185,8 +185,6 @@ function App() {
 
   const renderModule = () => {
     switch(activeModule) {
-      case 'dashboard':
-        return <DashboardModule setActiveModule={setActiveModule} />;
       case 'documents':
         return <DocumentHub />;
       case 'advisors':
@@ -194,11 +192,11 @@ function App() {
       case 'ai':
         return <AIHub />;
       case 'meetings':
-        return <PlaceholderModule title="Meeting Hub" icon={Video} color="orange" />;
+        return <PlaceholderModule title="Virtual Meetings Hub" icon={Video} color="orange" />;
       case 'subscription':
-        return <PlaceholderModule title="Subscription" icon={CreditCard} color="indigo" />;
+        return <SubscriptionModule setActiveModule={setActiveModule} />;
       default:
-        return <DashboardModule setActiveModule={setActiveModule} />;
+        return <SubscriptionModule setActiveModule={setActiveModule} />;
     }
   };
 
