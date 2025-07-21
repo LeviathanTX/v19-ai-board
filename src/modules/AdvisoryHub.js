@@ -138,31 +138,30 @@ const advisorTemplates = [
 
 const AdvisoryHub = () => {
   const { state, updateAdvisors } = useAppState();
-  const [advisors, setAdvisors] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingAdvisor, setEditingAdvisor] = useState(null);
   const [expandedAdvisor, setExpandedAdvisor] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
-  useEffect(() => {
-    // Always ensure Meeting Host is included
+  // Initialize advisors from state
+  const [advisors, setAdvisors] = useState(() => {
+    // Always ensure Meeting Host is included at initialization
     const hasHost = state.selectedAdvisors.some(adv => adv.isHost);
     if (!hasHost) {
-      // Add the meeting host to the beginning
-      const advisorsWithHost = [meetingHost, ...state.selectedAdvisors];
-      setAdvisors(advisorsWithHost);
-      updateAdvisors(advisorsWithHost);
-    } else {
-      setAdvisors(state.selectedAdvisors);
+      return [meetingHost, ...state.selectedAdvisors];
     }
-  }, [state.selectedAdvisors]);
+    return state.selectedAdvisors;
+  });
 
+  // Update global state when advisors change, but prevent circular updates
   useEffect(() => {
-    if (advisors.length > 0) {
+    // Only update if advisors have actually changed
+    const advisorsChanged = JSON.stringify(advisors) !== JSON.stringify(state.selectedAdvisors);
+    if (advisorsChanged && advisors.length > 0) {
       updateAdvisors(advisors);
     }
-  }, [advisors]);
+  }, [advisors, updateAdvisors, state.selectedAdvisors]);
 
   const [newAdvisor, setNewAdvisor] = useState({
     name: '',
