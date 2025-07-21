@@ -326,7 +326,7 @@ const AIHub = () => {
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">AI Hub Settings</h3>
+            <h3 className="text-lg font-semibold">AI Boardroom Settings</h3>
             <button
               onClick={() => setShowSettings(false)}
               className="p-1 hover:bg-gray-100 rounded"
@@ -484,37 +484,51 @@ const AIHub = () => {
         )}
 
         <div className="bg-white border-b px-6 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">AI Advisory Meeting</h2>
+              <h2 className="text-xl font-semibold text-gray-900">AI Boardroom</h2>
               <p className="text-sm text-gray-600">
-                {activeAdvisors.length} advisor{activeAdvisors.length !== 1 ? 's' : ''} active
+                Live advisory session
                 {hasApiKey && <span className="text-green-600 ml-2">• AI enabled</span>}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowAdvisorPanel(!showAdvisorPanel)}
-                className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200"
-              >
-                <Users className="w-4 h-4 inline mr-2" />
-                Advisors
-              </button>
-              <button
-                onClick={() => setShowDocumentPanel(!showDocumentPanel)}
-                className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
-              >
-                <FileText className="w-4 h-4 inline mr-2" />
-                Documents
-              </button>
-              <button
-                onClick={() => setShowSettings(true)}
-                className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
-                title="Settings"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
+              title="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setShowDocumentPanel(!showDocumentPanel)}
+              className="bg-blue-50 rounded-lg p-4 hover:bg-blue-100 transition-colors text-left"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-blue-900">Documents</h3>
+                  <p className="text-2xl font-bold text-blue-600">{state.documents.filter(doc => doc.analysis).length}</p>
+                  <p className="text-xs text-blue-600 mt-0.5">Available for AI</p>
+                </div>
+                <FileText className="w-8 h-8 text-blue-400" />
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setShowAdvisorPanel(!showAdvisorPanel)}
+              className="bg-purple-50 rounded-lg p-4 hover:bg-purple-100 transition-colors text-left"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-purple-900">Advisors</h3>
+                  <p className="text-2xl font-bold text-purple-600">{activeAdvisors.length}</p>
+                  <p className="text-xs text-purple-600 mt-0.5">Active in meeting</p>
+                </div>
+                <Users className="w-8 h-8 text-purple-400" />
+              </div>
+            </button>
           </div>
         </div>
 

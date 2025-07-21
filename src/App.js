@@ -15,20 +15,53 @@ function App() {
 
   const modules = [
     { id: 'dashboard', name: 'Dashboard', icon: Home, color: 'gray' },
-    { id: 'ai', name: 'AI Hub', icon: Brain, color: 'green' },
+    { id: 'ai', name: 'AI Boardroom', icon: Brain, color: 'green' },
     { id: 'documents', name: 'Document Hub', icon: FileText, color: 'blue' },
     { id: 'advisors', name: 'Advisory Hub', icon: Users, color: 'purple' },
-    { id: 'meetings', name: 'Meeting Hub', icon: Video, color: 'orange' },
+    { id: 'meetings', name: 'Virtual Meetings Hub', icon: Video, color: 'orange' },
     { id: 'subscription', name: 'Subscription', icon: CreditCard, color: 'indigo' }
   ];
 
   const PlaceholderModule = ({ title, icon: Icon, color }) => {
+    const isMeetingsHub = title === 'Virtual Meetings Hub';
+    
     return (
       <ModuleContainer title={title}>
         <div className="flex flex-col items-center justify-center h-full text-gray-400">
           <Icon className={`w-16 h-16 mb-4 text-${color}-400`} />
-          <p className="text-lg font-medium">{title} Module</p>
+          <p className="text-lg font-medium">{title}</p>
           <p className="text-sm mt-2">Coming soon...</p>
+          
+          {isMeetingsHub && (
+            <>
+              <div className="mt-8 grid grid-cols-3 gap-8">
+                <div className="text-center">
+                  <div className="w-20 h-20 mx-auto mb-3 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <span className="text-3xl">🎥</span>
+                  </div>
+                  <p className="text-sm font-medium text-gray-600">Google Meet</p>
+                  <p className="text-xs text-gray-500">Integration</p>
+                </div>
+                <div className="text-center">
+                  <div className="w-20 h-20 mx-auto mb-3 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <span className="text-3xl">💻</span>
+                  </div>
+                  <p className="text-sm font-medium text-gray-600">Zoom</p>
+                  <p className="text-xs text-gray-500">Integration</p>
+                </div>
+                <div className="text-center">
+                  <div className="w-20 h-20 mx-auto mb-3 rounded-lg bg-indigo-100 flex items-center justify-center">
+                    <span className="text-3xl">📱</span>
+                  </div>
+                  <p className="text-sm font-medium text-gray-600">Microsoft Teams</p>
+                  <p className="text-xs text-gray-500">Integration</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-500 mt-6 max-w-md text-center">
+                Invite your AI Advisors to join your virtual meetings
+              </p>
+            </>
+          )}
         </div>
       </ModuleContainer>
     );
@@ -53,7 +86,7 @@ function App() {
             <div className="border-b pb-6">
               <h3 className="text-lg font-medium mb-4">API Configuration</h3>
               <p className="text-sm text-gray-600 mb-4">
-                To configure API keys for the AI Hub, please go to the AI Hub module and click the settings icon.
+                To configure API keys for the AI Boardroom, please go to the AI Boardroom module and click the settings icon.
               </p>
               <button
                 onClick={() => {
@@ -62,7 +95,7 @@ function App() {
                 }}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
-                Go to AI Hub Settings
+                Go to AI Boardroom Settings
               </button>
             </div>
 
@@ -76,7 +109,7 @@ function App() {
                   </label>
                   <select className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="dashboard">Dashboard</option>
-                    <option value="ai">AI Hub</option>
+                    <option value="ai">AI Boardroom</option>
                     <option value="documents">Document Hub</option>
                   </select>
                 </div>

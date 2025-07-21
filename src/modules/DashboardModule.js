@@ -29,12 +29,12 @@ const DashboardModule = ({ setActiveModule }) => {
         
         <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-8 text-center">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">Ready to Start?</h3>
-          <p className="text-gray-600 mb-6">Jump into the AI Hub to start your advisory session</p>
+          <p className="text-gray-600 mb-6">Jump into the AI Boardroom to start your advisory session</p>
           <button
             onClick={() => setActiveModule('ai')}
             className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all"
           >
-            Open AI Hub
+            Open AI Boardroom
           </button>
         </div>
       </div>
