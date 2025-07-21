@@ -19,6 +19,17 @@ const AIHub = () => {
   const [tempApiKey, setTempApiKey] = useState('');
   const [apiKeyError, setApiKeyError] = useState('');
 
+  // First check for environment variable, then fall back to localStorage
+  const getInitialApiKey = () => {
+    // Check for Vercel environment variable first
+    const envKey = process.env.REACT_APP_CLAUDE_API_KEY;
+    if (envKey && envKey.trim() !== '') {
+      return envKey;
+    }
+    // Fall back to localStorage
+    return localStorage.getItem('claudeApiKey') || '';
+  };
+
   const [settings, setSettings] = useState(() => {
     const savedSettings = localStorage.getItem('aiHubSettings');
     if (savedSettings) {
@@ -26,14 +37,14 @@ const AIHub = () => {
         const parsed = JSON.parse(savedSettings);
         return {
           ...parsed,
-          apiKey: parsed.apiKey || localStorage.getItem('claudeApiKey') || ''
+          apiKey: getInitialApiKey() // Use the function to get API key
         };
       } catch (e) {
         console.error('Error parsing saved settings:', e);
       }
     }
     return {
-      apiKey: localStorage.getItem('claudeApiKey') || '',
+      apiKey: getInitialApiKey(), // Use the function to get API key
       interactionMode: 'orchestrated',
       defaultAdvisors: [],
       autoSave: true,
@@ -42,9 +53,21 @@ const AIHub = () => {
     };
   });
 
-  // Check if API key is set
-  const hasApiKey = settings.apiKey && settings.apiKey.trim() !== '';
+  // Check if API key is set (from environment or localStorage)
+  const isUsingEnvKey = process.env.REACT_APP_CLAUDE_API_KEY && process.env.REACT_APP_CLAUDE_API_KEY.trim() !== '';
+  const hasApiKey = (settings.apiKey && settings.apiKey.trim() !== '') || isUsingEnvKey;
   const showApiKeyBar = !hasApiKey;
+
+  // When making API calls, use this function to get the API key
+  const getApiKey = () => {
+    // Always prefer environment variable if available
+    const envKey = process.env.REACT_APP_CLAUDE_API_KEY;
+    if (envKey && envKey.trim() !== '') {
+      return envKey;
+    }
+    // Fall back to settings/localStorage
+    return settings.apiKey;
+  };
 
   useEffect(() => {
     // Set up initial advisors
@@ -130,7 +153,9 @@ const AIHub = () => {
     setInputMessage('');
     setIsProcessing(true);
 
-    if (hasApiKey) {
+    const apiKey = getApiKey(); // Use the getApiKey function
+
+    if (apiKey) {
       try {
         // Get relevant documents context
         const relevantDocs = state.documents
@@ -167,7 +192,7 @@ const AIHub = () => {
             },
             body: JSON.stringify({
               messages: messages,
-              apiKey: settings.apiKey.trim()
+              apiKey: apiKey.trim() // Use the apiKey from getApiKey()
             })
           });
 
@@ -315,34 +340,43 @@ const AIHub = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Claude API Key
               </label>
+              {isUsingEnvKey && (
+                <p className="text-xs text-green-600 mb-2">
+                  ✓ Using API key from environment variables
+                </p>
+              )}
               <div className="flex gap-2">
                 <div className="flex-1 relative">
                   <input
                     type={showApiKey ? 'text' : 'password'}
-                    value={settings.apiKey}
-                    onChange={(e) => setSettings({ ...settings, apiKey: e.target.value })}
+                    value={isUsingEnvKey ? '••••••••••••••••' : settings.apiKey}
+                    onChange={(e) => !isUsingEnvKey && setSettings({ ...settings, apiKey: e.target.value })}
                     placeholder="sk-ant-..."
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isUsingEnvKey}
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                   />
                   <button
                     onClick={() => setShowApiKey(!showApiKey)}
                     className="absolute right-2 top-2.5 text-gray-500 hover:text-gray-700"
+                    disabled={isUsingEnvKey}
                   >
                     {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <button
-                  onClick={() => {
-                    const newSettings = { ...settings };
-                    saveApiKey();
-                    setShowSettings(false);
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  Save
-                </button>
+                {!isUsingEnvKey && (
+                  <button
+                    onClick={() => {
+                      const newSettings = { ...settings };
+                      saveApiKey();
+                      setShowSettings(false);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Save
+                  </button>
+                )}
               </div>
-              {settings.apiKey && (
+              {!isUsingEnvKey && settings.apiKey && (
                 <button
                   onClick={clearApiKey}
                   className="mt-2 text-sm text-red-600 hover:text-red-700"
@@ -404,7 +438,7 @@ const AIHub = () => {
             <div className="flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
               <span className="text-sm text-amber-800">
-                {hasApiKey ? 'Update your Claude API key:' : 'Add your Claude API key to enable AI responses:'}
+                Add your Claude API key to enable AI responses:
               </span>
               <div className="flex-1 max-w-md relative">
                 <input
@@ -432,14 +466,6 @@ const AIHub = () => {
               >
                 Save
               </button>
-              {hasApiKey && !tempApiKey && (
-                <button
-                  onClick={() => setTempApiKey('')}
-                  className="p-1 text-amber-600 hover:bg-amber-100 rounded"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
             </div>
             {apiKeyError && (
               <p className="text-xs text-red-600 mt-1 ml-8">{apiKeyError}</p>
