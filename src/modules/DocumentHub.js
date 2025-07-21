@@ -4,12 +4,13 @@ import { useAppState } from '../contexts/AppStateContext';
 import ModuleContainer from '../components/ModuleContainer';
 
 const DocumentHub = () => {
-  const { state, updateDocuments } = useAppState();
+  const { state, updateDocuments, addDocument, deleteDocument, getDocumentContent } = useAppState();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [uploadProgress, setUploadProgress] = useState({});
   const [analysisQueue, setAnalysisQueue] = useState([]);
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [previewContent, setPreviewContent] = useState(null);
 
   const supportedFileTypes = {
     'application/pdf': { ext: 'pdf', icon: '📄', color: 'red' },
@@ -31,6 +32,11 @@ const DocumentHub = () => {
         'Revenue growth opportunities identified',
         'Risk mitigation strategies outlined',
         'Team expansion recommendations'
+      ],
+      keyInsights: [
+        'Market expansion opportunities in APAC region',
+        'Cost optimization through automation',
+        'Customer retention strategies showing 25% improvement'
       ],
       sentiment: 'positive',
       relevanceScore: 0.85,
@@ -84,35 +90,54 @@ const DocumentHub = () => {
           fileType: supportedFileTypes[file.type]
         };
 
-        const updatedDocs = [...state.documents, newDocument];
-        updateDocuments(updatedDocs);
+        // Use the new addDocument method that saves to IndexedDB
+        await addDocument(newDocument);
         
         setUploadProgress(prev => {
           const { [docId]: _, ...rest } = prev;
           return rest;
         });
 
-        analyzeDocument(newDocument);
+        // Analyze the document (without content to save space)
+        const { content, ...docMetadata } = newDocument;
+        analyzeDocument(docMetadata);
       };
       
       reader.readAsDataURL(file);
     }
   };
 
-  const handleDelete = (docId) => {
+  const handleDelete = async (docId) => {
     if (window.confirm('Are you sure you want to delete this document?')) {
-      const updatedDocs = state.documents.filter(doc => doc.id !== docId);
-      updateDocuments(updatedDocs);
+      await deleteDocument(docId);
+    }
+  };
+
+  const handlePreview = async (doc) => {
+    setPreviewDoc(doc);
+    // Fetch content from IndexedDB when preview is requested
+    try {
+      const fullDoc = await getDocumentContent(doc.id);
+      if (fullDoc && fullDoc.content) {
+        setPreviewContent(fullDoc.content);
+      } else {
+        // If no content in IndexedDB, show analysis only
+        setPreviewContent(null);
+      }
+    } catch (error) {
+      console.error('Error fetching document content:', error);
+      setPreviewContent(null);
     }
   };
 
   const filteredDocuments = state.documents.filter(doc => {
     const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = selectedType === 'all' || doc.fileType.ext === selectedType;
+    const matchesType = selectedType === 'all' || doc.fileType?.ext === selectedType;
     return matchesSearch && matchesType;
   });
 
   const formatFileSize = (bytes) => {
+    if (!bytes) return '0 B';
     if (bytes < 1024) return bytes + ' B';
     else if (bytes < 1048576) return Math.round(bytes / 1024) + ' KB';
     else return Math.round(bytes / 1048576) + ' MB';
@@ -181,9 +206,9 @@ const DocumentHub = () => {
                 <div key={doc.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{doc.fileType.icon}</span>
-                      <div>
-                        <h3 className="font-medium text-gray-900 truncate max-w-[200px]" title={doc.name}>
+                      <span className="text-2xl">{doc.fileType?.icon || '📄'}</span>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 truncate" title={doc.name}>
                           {doc.name}
                         </h3>
                         <p className="text-xs text-gray-500">
@@ -210,7 +235,7 @@ const DocumentHub = () => {
                   <div className="flex justify-between items-center">
                     <div className="flex gap-2">
                       <button
-                        onClick={() => setPreviewDoc(doc)}
+                        onClick={() => handlePreview(doc)}
                         className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                         title="Preview"
                       >
@@ -231,6 +256,106 @@ const DocumentHub = () => {
           )}
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {previewDoc && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{previewDoc.fileType?.icon || '📄'}</span>
+                <div>
+                  <h3 className="font-semibold text-lg">{previewDoc.name}</h3>
+                  <p className="text-sm text-gray-500">
+                    {formatFileSize(previewDoc.size)} • {new Date(previewDoc.uploadDate).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setPreviewDoc(null);
+                  setPreviewContent(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-auto p-6">
+              {previewDoc.analysis && (
+                <div className="mb-6">
+                  <h4 className="font-semibold text-lg mb-3">AI Analysis</h4>
+                  <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-4">
+                    <p className="text-sm text-blue-900 mb-3">{previewDoc.analysis.summary}</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      <div>
+                        <p className="font-medium text-sm text-blue-900 mb-2">Key Points:</p>
+                        <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">
+                          {previewDoc.analysis.keyPoints?.map((point, i) => (
+                            <li key={i}>{point}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      
+                      <div>
+                        <p className="font-medium text-sm text-blue-900 mb-2">Key Insights:</p>
+                        <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">
+                          {previewDoc.analysis.keyInsights?.map((insight, i) => (
+                            <li key={i}>{insight}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 pt-4 border-t border-blue-200">
+                      <p className="font-medium text-sm text-blue-900 mb-2">Suggested Advisors:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {previewDoc.analysis.suggestedAdvisors?.map((advisor, i) => (
+                          <span key={i} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                            {advisor}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {previewContent ? (
+                <div>
+                  <h4 className="font-semibold text-lg mb-3">Document Content</h4>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    {previewDoc.fileType?.ext === 'txt' ? (
+                      <pre className="whitespace-pre-wrap text-sm font-mono">
+                        {(() => {
+                          try {
+                            return atob(previewContent.split(',')[1]);
+                          } catch (e) {
+                            return 'Unable to decode document content';
+                          }
+                        })()}
+                      </pre>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                        <p>Full preview not available for {previewDoc.fileType?.ext?.toUpperCase()} files</p>
+                        <p className="text-sm mt-2">Download the file to view its full contents</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Loader className="w-8 h-8 animate-spin mx-auto mb-3" />
+                  <p>Loading document content...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </ModuleContainer>
   );
 };

@@ -3,41 +3,11 @@ import { Users, Plus, Search, Edit2, Save, X, ChevronDown, ChevronUp, Brain, Bri
 import { useAppState } from '../contexts/AppStateContext';
 import ModuleContainer from '../components/ModuleContainer';
 
-// Default Host advisor
-const defaultHost = {
-  id: 'host-001',
-  name: 'Meeting Host',
-  role: 'AI Board Facilitator',
-  expertise: ['Meeting Facilitation', 'Strategic Planning', 'Board Governance', 'Decision Making', 'Consensus Building'],
-  personality: {
-    tone: 'Professional and welcoming',
-    approach: 'Structured facilitation with focus on outcomes',
-    traits: ['Organized', 'Neutral', 'Inclusive', 'Time-conscious', 'Action-oriented']
-  },
-  experience: 'AI-powered board meeting facilitator and strategic advisor',
-  avatar: '🎯',
-  memory: {
-    conversations: [],
-    keyInsights: [],
-    actionItems: []
-  },
-  customPrompt: `You are the AI Board Meeting Host and Facilitator. Your role is to:
-- Welcome participants and set the meeting tone
-- Keep discussions focused and productive
-- Ensure all advisors have opportunity to contribute
-- Summarize key points and action items
-- Help the user navigate complex decisions
-- Moderate debates between advisors
-- Track time and meeting objectives
-- Facilitate consensus-building
-You should be professional yet approachable, keeping meetings efficient while ensuring thorough discussion of important topics.`,
-  specialtyDocuments: [],
-  isHost: true
-};
+// Import default advisors from context
+import { DEFAULT_ADVISORS } from '../contexts/AppStateContext';
 
-// Default advisor templates
-const defaultAdvisors = [
-  defaultHost,
+// Additional advisor templates for creating new advisors
+const advisorTemplates = [
   {
     id: 'ceo-coach-001',
     name: 'Sarah Chen',
@@ -150,13 +120,9 @@ const AdvisoryHub = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
   useEffect(() => {
-    if (state.selectedAdvisors.length === 0) {
-      updateAdvisors(defaultAdvisors);
-      setAdvisors(defaultAdvisors);
-    } else {
-      setAdvisors(state.selectedAdvisors);
-    }
-  }, []);
+    // Always use advisors from state
+    setAdvisors(state.selectedAdvisors);
+  }, [state.selectedAdvisors]);
 
   useEffect(() => {
     if (advisors.length > 0) {
@@ -294,7 +260,10 @@ const AdvisoryHub = () => {
                     <div className="flex items-center gap-3">
                       <span className="text-3xl">{advisor.avatar}</span>
                       <div>
-                        <h3 className="font-semibold text-gray-900">{advisor.name}</h3>
+                        <h3 className="font-semibold text-gray-900">
+                          {advisor.name}
+                          {advisor.isHost && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Host</span>}
+                        </h3>
                         <p className="text-sm text-gray-600">{advisor.role}</p>
                       </div>
                     </div>
@@ -427,7 +396,7 @@ const AdvisoryHub = () => {
                       Start from template (optional)
                     </label>
                     <div className="grid grid-cols-2 gap-2">
-                      {defaultAdvisors.map((template) => (
+                      {advisorTemplates.map((template) => (
                         <button
                           key={template.id}
                           onClick={() => applyTemplate(template)}
