@@ -18,6 +18,8 @@ const AIHub = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [tempApiKey, setTempApiKey] = useState('');
   const [apiKeyError, setApiKeyError] = useState('');
+  const [meetingStarted, setMeetingStarted] = useState(false);
+  const [meetingStartTime, setMeetingStartTime] = useState(null);
 
   // First check for environment variable, then fall back to localStorage
   const getInitialApiKey = () => {
@@ -137,6 +139,198 @@ const AIHub = () => {
     setSettings(newSettings);
     setTempApiKey('');
     setApiKeyError('');
+  };
+
+  const startMeeting = async () => {
+    setMeetingStarted(true);
+    setMeetingStartTime(new Date());
+    
+    // Find the host advisor
+    const host = activeAdvisors.find(adv => adv.isHost);
+    if (!host) return;
+
+    const apiKey = getApiKey();
+    
+    if (apiKey) {
+      try {
+        const meetingInfo = {
+          attendees: activeAdvisors.map(a => a.name).join(', '),
+          documentsAvailable: state.documents.filter(doc => doc.analysis).length,
+          time: new Date().toLocaleTimeString()
+        };
+
+        const hostGreeting = `You are ${host.name}, the AI Board Facilitator. You're starting a new advisory board meeting.
+        
+        Meeting attendees: ${meetingInfo.attendees}
+        Documents available: ${meetingInfo.documentsAvailable}
+        Meeting start time: ${meetingInfo.time}
+        
+        Your role is to:
+        1. Warmly welcome everyone to the meeting
+        2. Briefly introduce the attendees (if more than just you)
+        3. Ask about the meeting's objectives
+        4. Suggest an agenda structure
+        5. Mention that you'll track action items and provide a summary at the end
+        
+        Be professional but warm, efficient but thorough. Keep your greeting concise but comprehensive.`;
+
+        const response = await fetch('/api/claude', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: 'system',
+                content: hostGreeting
+              },
+              {
+                role: 'user',
+                content: 'Please start the meeting.'
+              }
+            ],
+            apiKey: apiKey.trim()
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.content && data.content.length > 0) {
+            const hostMessage = {
+              id: `msg-${Date.now()}-host-welcome`,
+              type: 'advisor',
+              advisorId: host.id,
+              advisorName: host.name,
+              advisorRole: host.role,
+              advisorAvatar: host.avatar,
+              content: data.content[0].text,
+              timestamp: new Date().toISOString(),
+              isHostMessage: true
+            };
+            setMessages([hostMessage]);
+          }
+        }
+      } catch (error) {
+        console.error('Error starting meeting:', error);
+      }
+    } else {
+      // Simulated host greeting when no API key
+      const hostMessage = {
+        id: `msg-${Date.now()}-host-welcome`,
+        type: 'advisor',
+        advisorId: host.id,
+        advisorName: host.name,
+        advisorRole: host.role,
+        advisorAvatar: host.avatar,
+        content: `Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'} everyone! Welcome to today's AI Board Advisory meeting.
+
+I'm ${host.name}, your meeting facilitator, and I'm here to ensure we have a productive and focused session. ${activeAdvisors.length > 1 ? `Joining us today are ${activeAdvisors.filter(a => !a.isHost).map(a => `${a.name} (${a.role})`).join(', ')}.` : ''}
+
+Before we begin, could you please share:
+• What are your primary objectives for today's meeting?
+• Any specific challenges or opportunities you'd like to discuss?
+• Are there particular documents you'd like us to review?
+
+I'll be tracking our discussion points, action items, and key decisions throughout the meeting. At the end, I'll provide a comprehensive summary with clear next steps.
+
+How would you like to start?`,
+        timestamp: new Date().toISOString(),
+        isHostMessage: true
+      };
+      setMessages([hostMessage]);
+    }
+  };
+
+  const endMeeting = async () => {
+    if (!meetingStarted) return;
+    
+    const host = activeAdvisors.find(adv => adv.isHost);
+    if (!host) return;
+
+    const apiKey = getApiKey();
+    
+    if (apiKey && messages.length > 1) {
+      try {
+        // Prepare meeting context for summary
+        const meetingDuration = Math.round((new Date() - meetingStartTime) / 1000 / 60);
+        const conversationHistory = messages.map(msg => 
+          `${msg.type === 'user' ? 'User' : msg.advisorName}: ${msg.content}`
+        ).join('\n\n');
+
+        const summaryPrompt = `You are ${host.name}, the AI Board Facilitator. The meeting is ending.
+        
+        Meeting duration: ${meetingDuration} minutes
+        Attendees: ${activeAdvisors.map(a => a.name).join(', ')}
+        
+        Conversation history:
+        ${conversationHistory}
+        
+        Please provide:
+        1. A brief meeting summary (2-3 sentences)
+        2. Key decisions made
+        3. Action items with suggested owners and timelines
+        4. Recommended follow-up topics for next meeting
+        5. A warm closing statement
+        
+        Keep it concise but comprehensive.`;
+
+        const response = await fetch('/api/claude', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: 'system',
+                content: summaryPrompt
+              },
+              {
+                role: 'user',
+                content: 'Please provide the meeting summary and close the meeting.'
+              }
+            ],
+            apiKey: apiKey.trim()
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.content && data.content.length > 0) {
+            const summaryMessage = {
+              id: `msg-${Date.now()}-host-summary`,
+              type: 'advisor',
+              advisorId: host.id,
+              advisorName: host.name,
+              advisorRole: host.role,
+              advisorAvatar: host.avatar,
+              content: data.content[0].text,
+              timestamp: new Date().toISOString(),
+              isHostMessage: true,
+              isSummary: true
+            };
+            setMessages(prev => [...prev, summaryMessage]);
+          }
+        }
+      } catch (error) {
+        console.error('Error ending meeting:', error);
+      }
+    }
+    
+    // Update meeting state
+    const meetingRecord = {
+      id: `meeting-${Date.now()}`,
+      startTime: meetingStartTime,
+      endTime: new Date(),
+      messages: messages,
+      advisors: activeAdvisors,
+      documents: state.documents.filter(doc => doc.analysis)
+    };
+    
+    updateConversations([...state.activeConversations, meetingRecord]);
+    setMeetingStarted(false);
+    setMeetingStartTime(null);
   };
 
   const handleSendMessage = async () => {
@@ -488,17 +682,43 @@ const AIHub = () => {
             <div>
               <h2 className="text-xl font-semibold text-gray-900">AI Boardroom</h2>
               <p className="text-sm text-gray-600">
-                Live advisory session
-                {hasApiKey && <span className="text-green-600 ml-2">• AI enabled</span>}
+                {meetingStarted ? (
+                  <span className="text-green-600">
+                    • Meeting in progress ({Math.floor((new Date() - meetingStartTime) / 1000 / 60)} min)
+                  </span>
+                ) : (
+                  'Live advisory session'
+                )}
+                {hasApiKey && !meetingStarted && <span className="text-green-600 ml-2">• AI enabled</span>}
               </p>
             </div>
-            <button
-              onClick={() => setShowSettings(true)}
-              className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
-              title="Settings"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              {!meetingStarted ? (
+                <button
+                  onClick={startMeeting}
+                  disabled={activeAdvisors.length === 0 || !activeAdvisors.find(a => a.isHost)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <Video className="w-4 h-4" />
+                  Start Meeting
+                </button>
+              ) : (
+                <button
+                  onClick={endMeeting}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+                >
+                  <VideoOff className="w-4 h-4" />
+                  End Meeting
+                </button>
+              )}
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
+                title="Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           
           <div className="grid grid-cols-2 gap-3">
@@ -536,11 +756,15 @@ const AIHub = () => {
           {messages.length === 0 ? (
             <div className="text-center text-gray-500 mt-20">
               <Bot className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">Start your advisory session</p>
+              <p className="text-lg font-medium">
+                {!meetingStarted ? 'Ready to begin your advisory session' : 'Meeting started'}
+              </p>
               <p className="text-sm mt-2">
                 {activeAdvisors.length === 0 
                   ? 'Select advisors from the panel to begin'
-                  : 'Type a message below to begin'}
+                  : !meetingStarted 
+                    ? 'Click "Start Meeting" to begin with your host'
+                    : 'Your host is preparing to welcome you...'}
               </p>
               {!hasApiKey && (
                 <p className="text-xs text-amber-600 mt-4">
@@ -567,10 +791,22 @@ const AIHub = () => {
                     <div className="max-w-[70%] flex gap-3">
                       <span className="text-2xl">{msg.advisorAvatar}</span>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{msg.advisorName}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-900">{msg.advisorName}</p>
+                          {msg.isHostMessage && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Host</span>
+                          )}
+                          {msg.isSummary && (
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Summary</span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500">{msg.advisorRole}</p>
-                        <div className="bg-white border rounded-lg px-4 py-3 mt-1">
-                          {msg.content}
+                        <div className={`${msg.isHostMessage ? 'bg-blue-50 border-blue-200' : 'bg-white border'} ${msg.isSummary ? 'bg-green-50 border-green-200' : ''} rounded-lg px-4 py-3 mt-1`}>
+                          {msg.content.split('\n').map((line, idx) => (
+                            <p key={idx} className={idx > 0 ? 'mt-2' : ''}>
+                              {line}
+                            </p>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -592,14 +828,16 @@ const AIHub = () => {
               placeholder={
                 activeAdvisors.length === 0 
                   ? "Select advisors to start chatting..." 
-                  : "Ask your advisors..."
+                  : !meetingStarted
+                    ? "Start the meeting to begin..."
+                    : "Ask your advisors..."
               }
-              disabled={activeAdvisors.length === 0}
+              disabled={activeAdvisors.length === 0 || !meetingStarted}
               className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
             />
             <button
               onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || isProcessing || activeAdvisors.length === 0}
+              disabled={!inputMessage.trim() || isProcessing || activeAdvisors.length === 0 || !meetingStarted}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isProcessing ? <Loader className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
