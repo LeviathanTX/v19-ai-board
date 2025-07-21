@@ -11,6 +11,7 @@ const DocumentHub = () => {
   const [analysisQueue, setAnalysisQueue] = useState([]);
   const [previewDoc, setPreviewDoc] = useState(null);
   const [previewContent, setPreviewContent] = useState(null);
+  const [loadingContent, setLoadingContent] = useState(false);
 
   const supportedFileTypes = {
     'application/pdf': { ext: 'pdf', icon: '📄', color: 'red' },
@@ -115,19 +116,31 @@ const DocumentHub = () => {
 
   const handlePreview = async (doc) => {
     setPreviewDoc(doc);
+    setLoadingContent(true);
+    setPreviewContent(null);
+    
     // Fetch content from IndexedDB when preview is requested
     try {
       const fullDoc = await getDocumentContent(doc.id);
       if (fullDoc && fullDoc.content) {
         setPreviewContent(fullDoc.content);
       } else {
-        // If no content in IndexedDB, show analysis only
+        // If no content in IndexedDB, show a message
+        console.log('No content found in IndexedDB for document:', doc.id);
         setPreviewContent(null);
       }
     } catch (error) {
       console.error('Error fetching document content:', error);
       setPreviewContent(null);
+    } finally {
+      setLoadingContent(false);
     }
+  };
+
+  const closePreview = () => {
+    setPreviewDoc(null);
+    setPreviewContent(null);
+    setLoadingContent(false);
   };
 
   const filteredDocuments = state.documents.filter(doc => {
@@ -229,7 +242,12 @@ const DocumentHub = () => {
                         <CheckCircle className="w-4 h-4" />
                         <span className="text-sm">Analysis complete</span>
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <AlertCircle className="w-4 h-4" />
+                        <span className="text-sm">Not analyzed</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex justify-between items-center">
@@ -272,10 +290,7 @@ const DocumentHub = () => {
                 </div>
               </div>
               <button
-                onClick={() => {
-                  setPreviewDoc(null);
-                  setPreviewContent(null);
-                }}
+                onClick={closePreview}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -299,14 +314,16 @@ const DocumentHub = () => {
                         </ul>
                       </div>
                       
-                      <div>
-                        <p className="font-medium text-sm text-blue-900 mb-2">Key Insights:</p>
-                        <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">
-                          {previewDoc.analysis.keyInsights?.map((insight, i) => (
-                            <li key={i}>{insight}</li>
-                          ))}
-                        </ul>
-                      </div>
+                      {previewDoc.analysis.keyInsights && (
+                        <div>
+                          <p className="font-medium text-sm text-blue-900 mb-2">Key Insights:</p>
+                          <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">
+                            {previewDoc.analysis.keyInsights.map((insight, i) => (
+                              <li key={i}>{insight}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="mt-4 pt-4 border-t border-blue-200">
@@ -323,9 +340,14 @@ const DocumentHub = () => {
                 </div>
               )}
               
-              {previewContent ? (
-                <div>
-                  <h4 className="font-semibold text-lg mb-3">Document Content</h4>
+              <div>
+                <h4 className="font-semibold text-lg mb-3">Document Content</h4>
+                {loadingContent ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Loader className="w-8 h-8 animate-spin mx-auto mb-3" />
+                    <p>Loading document content...</p>
+                  </div>
+                ) : previewContent ? (
                   <div className="bg-gray-50 p-4 rounded-lg">
                     {previewDoc.fileType?.ext === 'txt' ? (
                       <pre className="whitespace-pre-wrap text-sm font-mono">
@@ -345,13 +367,22 @@ const DocumentHub = () => {
                       </div>
                     )}
                   </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Loader className="w-8 h-8 animate-spin mx-auto mb-3" />
-                  <p>Loading document content...</p>
-                </div>
-              )}
+                ) : (
+                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm text-yellow-800">
+                          Document content not available. This document may have been uploaded before content storage was implemented.
+                        </p>
+                        <p className="text-sm text-yellow-800 mt-2">
+                          Please re-upload the document to enable content preview.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
