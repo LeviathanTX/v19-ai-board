@@ -3,8 +3,34 @@ import { Users, Plus, Search, Edit2, Save, X, ChevronDown, ChevronUp, Brain, Bri
 import { useAppState } from '../contexts/AppStateContext';
 import ModuleContainer from '../components/ModuleContainer';
 
-// Import default advisors from context
-import { DEFAULT_ADVISORS } from '../contexts/AppStateContext';
+// Default Meeting Host to ensure it's always available
+const meetingHost = {
+  id: 'meeting-host',
+  name: 'Meeting Host',
+  role: 'AI Board Facilitator',
+  avatar: '🤖',
+  isHost: true,
+  experience: 'I facilitate productive discussions between you and your AI advisors',
+  expertise: ['Meeting Facilitation', 'Agenda Management', 'Action Items', 'Follow-up'],
+  personality: {
+    traits: ['Professional', 'Organized', 'Neutral'],
+    approach: 'Structured facilitation',
+    tone: 'Professional and welcoming'
+  },
+  customPrompt: `You are the Meeting Host, an AI Board Facilitator. Your role is to:
+    1. Start meetings professionally
+    2. Keep discussions on track
+    3. Ensure all advisors contribute when relevant
+    4. Summarize key points
+    5. Identify action items
+    Always be neutral, professional, and focused on productive outcomes.`,
+  specialtyDocuments: [],
+  memory: {
+    conversations: [],
+    keyInsights: [],
+    actionItems: []
+  }
+};
 
 // Additional advisor templates for creating new advisors
 const advisorTemplates = [
@@ -120,8 +146,16 @@ const AdvisoryHub = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
   useEffect(() => {
-    // Always use advisors from state
-    setAdvisors(state.selectedAdvisors);
+    // Always ensure Meeting Host is included
+    const hasHost = state.selectedAdvisors.some(adv => adv.isHost);
+    if (!hasHost) {
+      // Add the meeting host to the beginning
+      const advisorsWithHost = [meetingHost, ...state.selectedAdvisors];
+      setAdvisors(advisorsWithHost);
+      updateAdvisors(advisorsWithHost);
+    } else {
+      setAdvisors(state.selectedAdvisors);
+    }
   }, [state.selectedAdvisors]);
 
   useEffect(() => {
@@ -268,13 +302,15 @@ const AdvisoryHub = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setEditingAdvisor(advisor)}
-                        className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      {advisor.id.startsWith('custom-') && (
+                      {!advisor.isHost && (
+                        <button
+                          onClick={() => setEditingAdvisor(advisor)}
+                          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {!advisor.isHost && advisor.id.startsWith('custom-') && (
                         <button
                           onClick={() => handleDeleteAdvisor(advisor.id)}
                           className="p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded"
