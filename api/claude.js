@@ -20,8 +20,12 @@ export default async function handler(req, res) {
   try {
     const { messages, apiKey } = req.body;
 
-    if (!apiKey) {
-      return res.status(400).json({ error: 'API key is required' });
+    // Use the server-side API key from environment variable
+    // Fall back to user-provided key if no env key is set
+    const claudeApiKey = process.env.CLAUDE_API_KEY || apiKey;
+
+    if (!claudeApiKey) {
+      return res.status(400).json({ error: 'API key is not configured' });
     }
 
     // Extract system message if present
@@ -49,7 +53,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
+        'x-api-key': claudeApiKey,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify(requestBody)
